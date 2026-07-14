@@ -1,0 +1,300 @@
+local RunService = game:GetService("RunService")
+
+local Library = {}
+Library.__index = Library
+
+local _updateQueue = {}
+local _updateConnection
+
+local function StartUpdateLoop()
+	if _updateConnection then return end
+	task.spawn(function()
+		while task.wait(0.1) do
+			for label, value in pairs(_updateQueue) do
+				pcall(function()
+					label.Text = value
+				end)
+				_updateQueue[label] = nil
+			end
+		end
+	end)
+	_updateConnection = true
+end
+
+local function CreateScreenGui()
+	if get_hidden_gui or gethui then
+		local hui = (get_hidden_gui or gethui)()
+
+		local Main = Instance.new("ScreenGui")
+		Main.Name = "MRCScriptsUI"
+		Main.ResetOnSpawn = false
+		Main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		Main.IgnoreGuiInset = true
+		Main.Parent = hui
+
+		return Main
+	end
+
+	if (not is_sirhurt_closure) and (syn and syn.protect_gui) then
+		local cg
+		local ok = pcall(function()
+			cg = game:GetService("CoreGui")
+		end)
+
+		if ok and cg then
+			local Main = Instance.new("ScreenGui")
+			Main.Name = "MRCScriptsUI"
+			Main.ResetOnSpawn = false
+			Main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			Main.IgnoreGuiInset = true
+
+			syn.protect_gui(Main)
+			Main.Parent = cg
+
+			return Main
+		end
+	end
+
+	do
+		local cg
+		local ok = pcall(function()
+			cg = game:GetService("CoreGui")
+		end)
+
+		if ok and cg then
+			local rg = cg:FindFirstChild("RobloxGui")
+			if rg then
+				return rg
+			end
+
+			local Main = Instance.new("ScreenGui")
+			Main.Name = "MRCScriptsUI"
+			Main.ResetOnSpawn = false
+			Main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+			Main.IgnoreGuiInset = true
+			Main.Parent = cg
+
+			return Main
+		end
+	end
+
+	local player = game:GetService("Players").LocalPlayer
+	local playerGui = player and player:WaitForChild("PlayerGui", 5)
+
+	local Main = Instance.new("ScreenGui")
+	Main.Name = "MRCScriptsUI"
+	Main.ResetOnSpawn = false
+	Main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	Main.IgnoreGuiInset = true
+	Main.Parent = playerGui
+
+	return Main
+end
+
+function Library:CreateWindow(TitleText: string, CreateUI: boolean?)
+	local WindowObj = {}
+	local StatsList = {}
+	local IsFullscreen = true
+
+	local MRC = CreateScreenGui()
+
+	if not MRC then
+		warn("[MRC Scripts] Failed to create GUI")
+		return WindowObj
+	end
+
+	StartUpdateLoop()
+
+	-- MAIN BACKGROUND
+	local FullscreenBG = Instance.new("Frame")
+	FullscreenBG.Name = "FullscreenBackground"
+	FullscreenBG.Parent = MRC
+	FullscreenBG.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	FullscreenBG.BorderSizePixel = 0
+	FullscreenBG.Size = UDim2.new(1, 0, 1, 0)
+	FullscreenBG.Visible = true
+
+	-- BACKGROUND IMAGE
+	local Watermark = Instance.new("ImageLabel")
+	Watermark.Name = "Watermark"
+	Watermark.Parent = FullscreenBG
+	Watermark.BackgroundTransparency = 1
+	Watermark.Size = UDim2.new(1, 0, 1, 0)
+	Watermark.Image = "rbxassetid://85528166910835"
+	Watermark.ImageTransparency = 0.92
+
+	-- TITLE
+	local FullTitleLabel = Instance.new("TextLabel")
+	FullTitleLabel.Name = "Title"
+	FullTitleLabel.Parent = FullscreenBG
+	FullTitleLabel.BackgroundTransparency = 1
+	FullTitleLabel.Position = UDim2.new(0.15, 0, 0.05, 0)
+	FullTitleLabel.Size = UDim2.new(0.7, 0, 0.10, 0)
+	FullTitleLabel.Font = Enum.Font.GothamBlack
+	FullTitleLabel.Text = "AUTO CLAN QUEST"
+	FullTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	FullTitleLabel.TextScaled = true
+	FullTitleLabel.TextWrapped = true
+
+	local FullTitleGradient = Instance.new("UIGradient")
+	FullTitleGradient.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 120, 120))
+	})
+	FullTitleGradient.Rotation = 90
+	FullTitleGradient.Parent = FullTitleLabel
+
+	-- CONTAINER
+	local FullContainer = Instance.new("Frame")
+	FullContainer.Name = "FullContainer"
+	FullContainer.Parent = FullscreenBG
+	FullContainer.BackgroundTransparency = 1
+	FullContainer.Position = UDim2.new(0.15, 0, 0.18, 0)
+	FullContainer.Size = UDim2.new(0.7, 0, 0.72, 0)
+
+	local FullListLayout = Instance.new("UIListLayout")
+	FullListLayout.Parent = FullContainer
+	FullListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	FullListLayout.Padding = UDim.new(0, 10)
+
+	-- FLOAT BUTTON
+	local FloatToggleBtn = Instance.new("ImageButton")
+	FloatToggleBtn.Name = "FloatingToggle"
+	FloatToggleBtn.Parent = MRC
+	FloatToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	FloatToggleBtn.Position = UDim2.new(0.9, 0, 0.9, -60)
+	FloatToggleBtn.Size = UDim2.new(0, 50, 0, 50)
+	FloatToggleBtn.ZIndex = 10
+	FloatToggleBtn.AutoButtonColor = true
+	FloatToggleBtn.Image = "rbxassetid://85528166910835"
+
+	local FloatCorner = Instance.new("UICorner")
+	FloatCorner.CornerRadius = UDim.new(1, 0)
+	FloatCorner.Parent = FloatToggleBtn
+
+	local FloatStroke = Instance.new("UIStroke")
+	FloatStroke.Thickness = 2
+	FloatStroke.Color = Color3.fromRGB(255, 255, 255)
+	FloatStroke.Parent = FloatToggleBtn
+
+	local FloatShadow = Instance.new("ImageLabel")
+	FloatShadow.Name = "Shadow"
+	FloatShadow.Parent = FloatToggleBtn
+	FloatShadow.BackgroundTransparency = 1
+	FloatShadow.Position = UDim2.new(0, -15, 0, -15)
+	FloatShadow.Size = UDim2.new(1, 30, 1, 30)
+	FloatShadow.ZIndex = 9
+	FloatShadow.Image = "rbxassetid://85528166910835"
+	FloatShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+	FloatShadow.ImageTransparency = 0.6
+	FloatShadow.SliceCenter = Rect.new(10, 10, 118, 118)
+
+	local function ToggleView()
+		IsFullscreen = not IsFullscreen
+		FullscreenBG.Visible = IsFullscreen
+	end
+
+	FloatToggleBtn.MouseButton1Click:Connect(ToggleView)
+
+	function WindowObj:AddSeperator()
+		local FullSepFrame = Instance.new("Frame")
+		FullSepFrame.Name = "SeperatorFrame"
+		FullSepFrame.Parent = FullContainer
+		FullSepFrame.BackgroundTransparency = 1
+		FullSepFrame.Size = UDim2.new(1, 0, 0, 20)
+
+		local FullLine = Instance.new("Frame")
+		FullLine.Name = "Line"
+		FullLine.Parent = FullSepFrame
+		FullLine.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		FullLine.BorderSizePixel = 0
+		FullLine.Size = UDim2.new(1, 0, 0, 2)
+		FullLine.Position = UDim2.new(0, 0, 0.5, 0)
+
+		local FullGradient = Instance.new("UIGradient")
+		FullGradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0.00, Color3.fromRGB(20, 20, 20)),
+			ColorSequenceKeypoint.new(0.50, Color3.fromRGB(255, 255, 255)),
+			ColorSequenceKeypoint.new(1.00, Color3.fromRGB(20, 20, 20))
+		})
+		FullGradient.Parent = FullLine
+
+		return {}
+	end
+
+	function WindowObj:AddStat(StatName: string, InitialValue: string | number)
+		local StatObj = {}
+		local currentValue = tostring(InitialValue)
+
+		local FullStatFrame = Instance.new("Frame")
+		FullStatFrame.Name = "Stat_" .. StatName
+		FullStatFrame.Parent = FullContainer
+		FullStatFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+		FullStatFrame.BackgroundTransparency = 0.35
+		FullStatFrame.BorderSizePixel = 0
+		FullStatFrame.Size = UDim2.new(1, 0, 0.06, 0)
+
+		local FullCorner = Instance.new("UICorner")
+		FullCorner.CornerRadius = UDim.new(0, 10)
+		FullCorner.Parent = FullStatFrame
+
+		local FullStroke = Instance.new("UIStroke")
+		FullStroke.Color = Color3.fromRGB(120, 120, 120)
+		FullStroke.Thickness = 1
+		FullStroke.Parent = FullStatFrame
+
+		local FullStatLabel = Instance.new("TextLabel")
+		FullStatLabel.Name = "Label"
+		FullStatLabel.Parent = FullStatFrame
+		FullStatLabel.BackgroundTransparency = 1
+		FullStatLabel.Position = UDim2.new(0.02, 0, 0, 0)
+		FullStatLabel.Size = UDim2.new(0.48, 0, 1, 0)
+		FullStatLabel.Font = Enum.Font.GothamBold
+		FullStatLabel.Text = StatName
+		FullStatLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+		FullStatLabel.TextScaled = true
+		FullStatLabel.TextWrapped = true
+		FullStatLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+		local FullValueLabel = Instance.new("TextLabel")
+		FullValueLabel.Name = "Value"
+		FullValueLabel.Parent = FullStatFrame
+		FullValueLabel.BackgroundTransparency = 1
+		FullValueLabel.Position = UDim2.new(0.5, 0, 0, 0)
+		FullValueLabel.Size = UDim2.new(0.48, 0, 1, 0)
+		FullValueLabel.Font = Enum.Font.GothamBlack
+		FullValueLabel.Text = currentValue
+		FullValueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		FullValueLabel.TextScaled = true
+		FullValueLabel.TextWrapped = true
+		FullValueLabel.TextXAlignment = Enum.TextXAlignment.Right
+
+		local FullValueGradient = Instance.new("UIGradient")
+		FullValueGradient.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 150, 150))
+		})
+		FullValueGradient.Parent = FullValueLabel
+
+		function StatObj:Update(NewValue)
+			currentValue = tostring(NewValue)
+			_updateQueue[FullValueLabel] = currentValue
+		end
+
+		function StatObj:Get()
+			return currentValue
+		end
+
+		table.insert(StatsList, StatObj)
+
+		return StatObj
+	end
+
+	function WindowObj:AddButton(Text: string, Callback)
+		return nil
+	end
+
+	return WindowObj
+end
+
+return Library
