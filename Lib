@@ -132,7 +132,7 @@ function Library:CreateWindow(TitleText: string, CreateUI: boolean?)
 	FullTitleLabel.Size = UDim2.new(0.7, 0, 0.10, 0)
 	FullTitleLabel.Font = Enum.Font.GothamBlack
 	FullTitleLabel.Text = "AUTO CLAN QUEST"
-	FullTitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	FullTitleLabel.TextColor3 = Color3.fromRGB(144, 238, 144)
 	FullTitleLabel.TextScaled = true
 	FullTitleLabel.TextWrapped = true
 
